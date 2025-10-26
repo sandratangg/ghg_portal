@@ -5,8 +5,7 @@ import os
 
 
 def load_and_clean_data(file_path="data/raw/epa_ghgrp_2021_2023_aggregate.csv"):
-    """Load and lightly clean EPA GHGRP aggregate data."""
-    # resolve relative path
+    """Load CSV and do light cleaning."""
     if not os.path.exists(file_path):
         file_path = os.path.join(
             os.path.dirname(__file__), "..", "raw", "epa_ghgrp_2021_2023_aggregate.csv"
@@ -15,33 +14,29 @@ def load_and_clean_data(file_path="data/raw/epa_ghgrp_2021_2023_aggregate.csv"):
     df = pd.read_csv(file_path)
     print(f"Original data shape: {df.shape}")
 
-    # drop rows with missing core fields
+    # Drop rows missing core fields
     initial_rows = len(df)
     df = df.dropna(subset=["total_ghg_emissions_tonnes", "state", "industry_sector"])
-    print(
-        f"Rows after removing missing values: {len(df)} (removed: {initial_rows - len(df)})"
-    )
+    print(f"Rows after removing missing values: {len(df)} (removed: {initial_rows - len(df)})")
 
-    # remove zero or non-positive emissions
+    # Remove non-positive emissions
     df = df[df["total_ghg_emissions_tonnes"] > 0]
     print(f"Rows after removing zero emissions: {len(df)}")
 
-    # fill lat/lon by state median then overall median
+    # Fill lat/lon by state median, then overall median
     for geo_col in ("latitude", "longitude"):
         if geo_col in df.columns:
-            df[geo_col] = df.groupby("state")[geo_col].transform(
-                lambda s: s.fillna(s.median())
-            )
+            df[geo_col] = df.groupby("state")[geo_col].transform(lambda s: s.fillna(s.median()))
             if df[geo_col].isna().any():
                 df[geo_col] = df[geo_col].fillna(df[geo_col].median())
 
-    # normalize sector names
+    # Clean sector labels
     df["industry_sector_clean"] = df["industry_sector"].apply(clean_industry_sector)
     return df
 
 
 def clean_industry_sector(sector):
-    """Return a cleaned/standardized sector label."""
+    """Short, normalized sector label."""
     if pd.isna(sector):
         return "Other"
     sector = str(sector).strip()
@@ -62,57 +57,32 @@ def prepare_features(
     add_aggregates=True,
     log_transform_numeric=False,
 ):
-    """Prepare features for modeling.
+    """Build feature DataFrame and target series.
 
-    Parameters
-    - df: DataFrame with raw data (should include cleaned industry_sector_clean)
-    - target_col: name of the target column (used to compute aggregates)
-    - add_interactions: create state x sector interaction feature
-    - add_aggregates: add aggregated features (mean emissions by state/sector)
-    - log_transform_numeric: apply log1p to strictly positive numeric feature columns
+    Options: add interaction, aggregates, and optional log transform.
     """
-    # Create a copy for feature engineering
     base_features = ["state", "industry_sector_clean", "reporting_year"]
-
-    # Add geolocation features if available
     geo_features = [c for c in ("latitude", "longitude") if c in df.columns]
 
     features_df = df[base_features + geo_features].copy()
 
-    # Interaction: state x sector
     if add_interactions:
         features_df["state_x_sector"] = (
-            features_df["state"].astype(str)
-            + "|"
-            + features_df["industry_sector_clean"].astype(str)
+            features_df["state"].astype(str) + "|" + features_df["industry_sector_clean"].astype(str)
         )
 
-    # Aggregated features (facility-scale proxies) computed from available target values
     if add_aggregates and target_col in df.columns:
-        # mean emissions by state
         state_means = df.groupby("state")[target_col].mean()
-        features_df["state_mean_emissions"] = (
-            features_df["state"].map(state_means).fillna(0.0)
-        )
+        features_df["state_mean_emissions"] = features_df["state"].map(state_means).fillna(0.0)
 
-        # mean emissions by sector
         sector_means = df.groupby("industry_sector_clean")[target_col].mean()
-        features_df["sector_mean_emissions"] = (
-            features_df["industry_sector_clean"].map(sector_means).fillna(0.0)
-        )
+        features_df["sector_mean_emissions"] = features_df["industry_sector_clean"].map(sector_means).fillna(0.0)
 
-        # combined state-sector mean
-        state_sector_means = df.groupby(["state", "industry_sector_clean"])[
-            target_col
-        ].mean()
+        state_sector_means = df.groupby(["state", "industry_sector_clean"])[target_col].mean()
         features_df["state_sector_mean_emissions"] = features_df.apply(
-            lambda r: state_sector_means.get(
-                (r["state"], r["industry_sector_clean"]), np.nan
-            ),
-            axis=1,
+            lambda r: state_sector_means.get((r["state"], r["industry_sector_clean"]), np.nan), axis=1
         ).fillna(0.0)
 
-    # Optionally log-transform numeric features that are strictly positive
     if log_transform_numeric:
         numeric_cols = features_df.select_dtypes(include=[np.number]).columns.tolist()
         for col in numeric_cols:
@@ -121,7 +91,6 @@ def prepare_features(
                 features_df[col] = np.log1p(col_vals)
 
     target = df[target_col].copy() if target_col in df.columns else None
-
     return features_df, target
 
 

@@ -73,9 +73,7 @@ def main():
         unsafe_allow_html=True,
     )
     st.markdown(
-        """
-    This dashboard analyzes EPA greenhouse gas reporting data (2021-2023) and provides emissions predictions.
-    """
+        """Dashboard for EPA GHGRP data and predictions."""
     )
 
     with st.spinner("Loading data..."):
@@ -105,119 +103,55 @@ def main():
 
 
 def show_dashboard_overview(df):
-    st.markdown(
-        '<h2 class="section-header">Dashboard Overview</h2>', unsafe_allow_html=True
-    )
+    st.markdown('<h2 class="section-header">Dashboard Overview</h2>', unsafe_allow_html=True)
 
-    # Key metrics
     metrics = create_summary_dashboard(df)
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
         st.metric("Total Emissions", metrics["Total Emissions"])
-    with col2:
+    with c2:
         st.metric("Avg per Facility", metrics["Average per Facility"])
-    with col3:
+    with c3:
         st.metric("Total Facilities", metrics["Total Facilities"])
-    with col4:
+    with c4:
         st.metric("States Covered", metrics["States Covered"])
-    with col5:
+    with c5:
         st.metric("Industry Sectors", metrics["Industry Sectors"])
 
-    # Main visualizations
     col1, col2 = st.columns(2)
-
     with col1:
         st.subheader("Top Emitting Sectors")
-        fig_sectors = plot_top_sectors(df, top_n=10)
-        st.plotly_chart(fig_sectors, use_container_width=True)
-
+        st.plotly_chart(plot_top_sectors(df, top_n=10), use_container_width=True)
     with col2:
         st.subheader("Emissions by State")
-        fig_map = plot_state_map(df)
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(plot_state_map(df), use_container_width=True)
 
-    # Yearly trends
     st.subheader("Emissions Trends (2021-2023)")
-    fig_trends = plot_yearly_trends(df)
-    st.plotly_chart(fig_trends, use_container_width=True)
+    st.plotly_chart(plot_yearly_trends(df), use_container_width=True)
 
 
 def show_detailed_analysis(df):
-    st.markdown(
-        '<h2 class="section-header">Detailed Analysis</h2>', unsafe_allow_html=True
-    )
-
-    # Outlier analysis
+    st.markdown('<h2 class="section-header">Detailed Analysis</h2>', unsafe_allow_html=True)
     st.subheader("Outlier Analysis")
+    threshold = st.slider("Outlier Threshold (Percentile)", 90, 99, 95)
+    st.plotly_chart(plot_outliers(df, threshold_percentile=threshold), use_container_width=True)
 
-    threshold = st.slider(
-        "Outlier Threshold (Percentile)", min_value=90, max_value=99, value=95
-    )
-    fig_outliers = plot_outliers(df, threshold_percentile=threshold)
-    st.plotly_chart(fig_outliers, use_container_width=True)
-
-    # Data exploration
     st.subheader("Data Exploration")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # Top facilities
+    c1, c2 = st.columns(2)
+    with c1:
         st.subheader("Top 20 Emitting Facilities")
         top_facilities = df.nlargest(20, "total_ghg_emissions_tonnes")[
-            [
-                "facility_name",
-                "state",
-                "industry_sector_clean",
-                "total_ghg_emissions_tonnes",
-                "reporting_year",
-            ]
+            ["facility_name", "state", "industry_sector_clean", "total_ghg_emissions_tonnes", "reporting_year"]
         ]
-        top_facilities["emissions_millions"] = (
-            top_facilities["total_ghg_emissions_tonnes"] / 1_000_000
-        )
-        st.dataframe(
-            top_facilities[
-                [
-                    "facility_name",
-                    "state",
-                    "industry_sector_clean",
-                    "emissions_millions",
-                    "reporting_year",
-                ]
-            ],
-            column_config={
-                "facility_name": "Facility Name",
-                "state": "State",
-                "industry_sector_clean": "Sector",
-                "emissions_millions": st.column_config.NumberColumn(
-                    "Emissions (M MT)", format="%.2f"
-                ),
-                "reporting_year": "Year",
-            },
-        )
-
-    with col2:
-        # Sector statistics
+        top_facilities["emissions_millions"] = top_facilities["total_ghg_emissions_tonnes"] / 1_000_000
+        st.dataframe(top_facilities[["facility_name", "state", "industry_sector_clean", "emissions_millions", "reporting_year"]], use_container_width=True)
+    with c2:
         st.subheader("Sector Statistics")
-        sector_stats = (
-            df.groupby("industry_sector_clean")["total_ghg_emissions_tonnes"]
-            .agg(["count", "sum", "mean", "std"])
-            .round(2)
-            .reset_index()
-        )
+        sector_stats = df.groupby("industry_sector_clean")["total_ghg_emissions_tonnes"].agg(["count", "sum", "mean", "std"]).round(2).reset_index()
         sector_stats.columns = ["Sector", "Count", "Total", "Mean", "Std"]
         sector_stats["Total (M MT)"] = sector_stats["Total"] / 1_000_000
         sector_stats["Mean (K MT)"] = sector_stats["Mean"] / 1_000
-
-        st.dataframe(
-            sector_stats[
-                ["Sector", "Count", "Total (M MT)", "Mean (K MT)"]
-            ].sort_values("Total (M MT)", ascending=False),
-            use_container_width=True,
-        )
+        st.dataframe(sector_stats[["Sector", "Count", "Total (M MT)", "Mean (K MT)"]].sort_values("Total (M MT)", ascending=False), use_container_width=True)
 
 
 def show_emissions_predictor(df, predictor):
@@ -269,11 +203,11 @@ def show_emissions_predictor(df, predictor):
             "Longitude (optional)", value=lon_default, format="%.6f"
         )
 
-    # Prediction button
+    # prediction
     if st.button("Predict Emissions", type="primary"):
         with st.spinner("Making prediction..."):
             try:
-                # Pass lat/lon if provided
+                # pass lat/lon if available
                 if "latitude" in df.columns and "longitude" in df.columns:
                     prediction = predictor.predict(
                         (state, sector, year, float(latitude), float(longitude))
@@ -282,34 +216,15 @@ def show_emissions_predictor(df, predictor):
                     prediction = predictor.predict((state, sector, year))
 
                 st.success("Prediction complete")
-
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.metric(
-                        "Predicted Emissions",
-                        f"{prediction:,.0f} metric tons CO₂e",
-                        help="Predicted annual greenhouse gas emissions",
-                    )
-
-                with col2:
-                    # Find similar facilities
-                    similar = df[
-                        (df["state"] == state) & (df["industry_sector_clean"] == sector)
-                    ]["total_ghg_emissions_tonnes"]
-
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.metric("Predicted Emissions", f"{prediction:,.0f} metric tons CO₂e")
+                with c2:
+                    similar = df[(df["state"] == state) & (df["industry_sector_clean"] == sector)]["total_ghg_emissions_tonnes"]
                     if len(similar) > 0:
                         avg_similar = similar.mean()
-                        st.metric(
-                            "Similar Facilities Average",
-                            f"{avg_similar:,.0f} metric tons CO₂e",
-                            delta=f"{prediction - avg_similar:,.0f}",
-                            help="Average emissions of similar facilities in the dataset",
-                        )
-
-                st.info(
-                    f"Facility Type: {sector} in {state} — Similar facilities: {len(similar)}"
-                )
+                        st.metric("Similar Facilities Average", f"{avg_similar:,.0f} metric tons CO₂e", delta=f"{prediction - avg_similar:,.0f}")
+                st.info(f"Facility Type: {sector} in {state} — Similar facilities: {len(similar)}")
 
             except Exception as e:
                 st.error(f"Prediction failed: {str(e)}")

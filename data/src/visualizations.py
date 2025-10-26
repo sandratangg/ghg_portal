@@ -6,7 +6,7 @@ import numpy as np
 
 
 def plot_top_sectors(df, top_n=10):
-    """Bar chart of top N emitting sectors."""
+    """Bar chart of top N sectors."""
     sector_emissions = (
         df.groupby("industry_sector_clean")["total_ghg_emissions_tonnes"]
         .agg(["sum", "count", "mean"])
@@ -14,7 +14,7 @@ def plot_top_sectors(df, top_n=10):
     )
     sector_emissions = sector_emissions.sort_values("sum", ascending=False).head(top_n)
 
-    # Format emissions in millions for better readability
+    # use millions for axis
     sector_emissions["sum_millions"] = sector_emissions["sum"] / 1_000_000
 
     fig = px.bar(
@@ -39,7 +39,7 @@ def plot_top_sectors(df, top_n=10):
 
 
 def plot_state_map(df):
-    """Choropleth map of emissions by state."""
+    """Choropleth by state."""
     state_emissions = (
         df.groupby("state")["total_ghg_emissions_tonnes"]
         .agg(["sum", "count", "mean"])
@@ -65,8 +65,8 @@ def plot_state_map(df):
 
 
 def plot_yearly_trends(df):
-    """Yearly trends analysis."""
-    # Overall trends
+    """Yearly trends and top-sector trends."""
+    # overall totals
     yearly_total = (
         df.groupby("reporting_year")["total_ghg_emissions_tonnes"]
         .agg(["sum", "count", "mean"])
@@ -89,7 +89,7 @@ def plot_yearly_trends(df):
         .reset_index()
     )
 
-    # Create subplots
+    # create subplots
     fig = make_subplots(
         rows=2,
         cols=2,
@@ -105,7 +105,7 @@ def plot_yearly_trends(df):
         ],
     )
 
-    # Total emissions
+    # total emissions
     fig.add_trace(
         go.Scatter(
             x=yearly_total["reporting_year"],
@@ -118,7 +118,7 @@ def plot_yearly_trends(df):
         col=1,
     )
 
-    # Average emissions
+    # average emissions
     fig.add_trace(
         go.Scatter(
             x=yearly_total["reporting_year"],
@@ -131,7 +131,7 @@ def plot_yearly_trends(df):
         col=2,
     )
 
-    # Number of facilities
+    # facility count
     fig.add_trace(
         go.Scatter(
             x=yearly_total["reporting_year"],
@@ -144,7 +144,7 @@ def plot_yearly_trends(df):
         col=1,
     )
 
-    # Top sectors
+    # top sectors trends
     colors = px.colors.qualitative.Set1
     for i, sector in enumerate(top_sectors):
         sector_data = sector_yearly[sector_yearly["industry_sector_clean"] == sector]
@@ -160,7 +160,7 @@ def plot_yearly_trends(df):
             col=2,
         )
 
-    # Update layout
+    # layout
     fig.update_layout(
         height=800,
         title_text="GHG Emissions Trends Analysis (2021-2023)",
@@ -178,7 +178,7 @@ def plot_yearly_trends(df):
 
 
 def plot_outliers(df, threshold_percentile=95):
-    """Outlier analysis and plots."""
+    """Outlier charts."""
     threshold = df["total_ghg_emissions_tonnes"].quantile(threshold_percentile / 100)
     outliers = df[df["total_ghg_emissions_tonnes"] >= threshold].copy()
 
@@ -193,7 +193,7 @@ def plot_outliers(df, threshold_percentile=95):
         ),
     )
 
-    # Log distribution
+    # log distribution
     fig.add_trace(
         go.Histogram(
             x=np.log10(df["total_ghg_emissions_tonnes"] + 1),
@@ -215,7 +215,7 @@ def plot_outliers(df, threshold_percentile=95):
         col=1,
     )
 
-    # Top outliers
+    # top outliers
     top_outliers = outliers.nlargest(20, "total_ghg_emissions_tonnes")
     fig.add_trace(
         go.Bar(
@@ -228,7 +228,7 @@ def plot_outliers(df, threshold_percentile=95):
         col=2,
     )
 
-    # Outliers by state
+    # outliers by state
     outliers_by_state = outliers.groupby("state").size().reset_index(name="count")
     outliers_by_state = outliers_by_state.sort_values("count", ascending=False).head(10)
     fig.add_trace(
@@ -241,7 +241,7 @@ def plot_outliers(df, threshold_percentile=95):
         col=1,
     )
 
-    # Outliers by sector
+    # outliers by sector
     outliers_by_sector = (
         outliers.groupby("industry_sector_clean").size().reset_index(name="count")
     )
@@ -259,29 +259,25 @@ def plot_outliers(df, threshold_percentile=95):
         col=2,
     )
 
-    fig.update_layout(
-        height=800,
-        title_text=f"Outlier Analysis (Top {100-threshold_percentile}% of Emitters)",
-        showlegend=False,
-    )
+    fig.update_layout(height=800, title_text=f"Outlier Analysis (Top {100-threshold_percentile}% of Emitters)", showlegend=False)
 
     return fig
 
 
 def plot_model_performance(y_true, y_pred, model_name="Model"):
-    """Visualize model performance."""
+    """Actual vs predicted and residuals."""
     fig = make_subplots(
         rows=1, cols=2, subplot_titles=("Actual vs Predicted", "Residuals Plot")
     )
 
-    # Actual vs Predicted
+    # actual vs predicted
     fig.add_trace(
         go.Scatter(x=y_true, y=y_pred, mode="markers", name="Predictions", opacity=0.6),
         row=1,
         col=1,
     )
 
-    # Perfect prediction line
+    # perfect prediction line
     min_val, max_val = min(y_true.min(), y_pred.min()), max(y_true.max(), y_pred.max())
     fig.add_trace(
         go.Scatter(
@@ -295,7 +291,7 @@ def plot_model_performance(y_true, y_pred, model_name="Model"):
         col=1,
     )
 
-    # Residuals
+    # residuals
     residuals = y_pred - y_true
     fig.add_trace(
         go.Scatter(
@@ -305,7 +301,7 @@ def plot_model_performance(y_true, y_pred, model_name="Model"):
         col=2,
     )
 
-    # Zero line for residuals
+    # zero line
     fig.add_trace(
         go.Scatter(
             x=[y_pred.min(), y_pred.max()],
@@ -318,9 +314,7 @@ def plot_model_performance(y_true, y_pred, model_name="Model"):
         col=2,
     )
 
-    fig.update_layout(
-        height=400, title_text=f"{model_name} Performance Analysis", showlegend=True
-    )
+    fig.update_layout(height=400, title_text=f"{model_name} Performance Analysis", showlegend=True)
 
     fig.update_xaxes(title_text="Actual Emissions", row=1, col=1)
     fig.update_yaxes(title_text="Predicted Emissions", row=1, col=1)
@@ -331,8 +325,8 @@ def plot_model_performance(y_true, y_pred, model_name="Model"):
 
 
 def create_summary_dashboard(df):
-    """Create summary metrics for the dashboard."""
-    # Key metrics
+    """Compute summary metrics for dashboard."""
+    # key metrics
     total_emissions = df["total_ghg_emissions_tonnes"].sum()
     avg_emissions = df["total_ghg_emissions_tonnes"].mean()
     total_facilities = df["facility_name"].nunique()

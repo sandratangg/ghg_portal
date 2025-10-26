@@ -12,17 +12,9 @@ from model import EmissionsPredictor
 from data_processing import load_and_clean_data, prepare_features
 
 
-# Use the data_processing helpers to load and prepare features
-def load_data_and_prepare(
-    add_interactions=True, add_aggregates=True, log_features=False
-):
+def load_data_and_prepare(add_interactions=True, add_aggregates=True, log_features=False):
     df = load_and_clean_data()
-    X, y = prepare_features(
-        df,
-        add_interactions=add_interactions,
-        add_aggregates=add_aggregates,
-        log_transform_numeric=log_features,
-    )
+    X, y = prepare_features(df, add_interactions=add_interactions, add_aggregates=add_aggregates, log_transform_numeric=log_features)
     return X, y, df
 
 
@@ -35,7 +27,7 @@ def main():
     cv = 5
     log_target = "--logtarget" in args
 
-    # feature-engineering flags
+    # feature flags
     add_interactions = "--no_interactions" not in args
     add_aggregates = "--no_aggregates" not in args
     log_features = "--log_features" in args
@@ -43,7 +35,7 @@ def main():
     # per-sector quick models
     per_sector_flag = "--per_sector" in args
 
-    # allow override via flags like --n_iter=100 and --cv=10
+    # parse numeric overrides e.g. --n_iter=100
     for a in args:
         if a.startswith("--n_iter="):
             try:
@@ -56,15 +48,14 @@ def main():
             except:
                 pass
 
-    # Always prepare base features without aggregates to avoid accidental leakage.
+    # prepare base features (no aggregates yet to avoid leakage)
     X, y, df = load_data_and_prepare(
         add_interactions=add_interactions,
         add_aggregates=False,
         log_features=log_features,
     )
 
-    # If aggregates requested, compute them using a holdout of the training partition
-    # so aggregated features are derived only from training targets (avoid leakage).
+    # If aggregates requested, compute them from a training holdout (no leakage)
     if add_aggregates:
         # initial split to compute aggregates (80% train, 20% holdout)
         X_tmp_train, X_tmp_hold, y_tmp_train, y_tmp_hold = train_test_split(
@@ -99,28 +90,19 @@ def main():
             axis=1,
         ).fillna(0.0)
 
-    # Train-test split
+    # Train-test split and predictor
     predictor = EmissionsPredictor()
 
-    # predictor already created above
-
     if grid_search_flag:
-        print("\nTraining model with GridSearchCV (this may take several minutes)...")
+        print("\nTraining model with GridSearchCV...")
         results = predictor.train(X, y, grid_search=True)
     elif randomized_flag:
-        print(f"\nTraining model with RandomizedSearchCV (n_iter={n_iter}, cv={cv})...")
+        print(f"\nTraining with RandomizedSearchCV (n_iter={n_iter}, cv={cv})...")
 
-        # Prepare train/test split and encoding
-        if log_target:
-            y_used = np.log1p(y)
-        else:
-            y_used = y
+        # optional log-target
+        y_used = np.log1p(y) if log_target else y
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y_used, test_size=0.2, random_state=42
-        )
-
-        # Fit preprocessing on training data
+        X_train, X_test, y_train, y_test = train_test_split(X, y_used, test_size=0.2, random_state=42)
         X_train_encoded = predictor.preprocess(X_train, fit=True)
         X_test_encoded = predictor.preprocess(X_test, fit=False)
 
@@ -131,23 +113,13 @@ def main():
             "min_samples_leaf": randint(1, 6),
         }
 
-        rnd = RandomizedSearchCV(
-            predictor.model,
-            param_distributions=param_dist,
-            n_iter=n_iter,
-            cv=cv,
-            scoring="r2",
-            n_jobs=-1,
-            verbose=2,
-        )
+        rnd = RandomizedSearchCV(predictor.model, param_distributions=param_dist, n_iter=n_iter, cv=cv, scoring="r2", n_jobs=-1, verbose=2)
         rnd.fit(X_train_encoded, y_train)
         predictor.model = rnd.best_estimator_
 
-        # Predict and compute metrics
         y_pred = predictor.model.predict(X_test_encoded)
 
         if log_target:
-            # back-transform
             y_test_orig = np.expm1(y_test)
             y_pred_orig = np.expm1(y_pred)
             r2 = float(r2_score(y_test_orig, y_pred_orig))
@@ -159,19 +131,16 @@ def main():
             rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
 
         results = {"r2": r2, "mae": mae, "rmse": rmse}
-
         print(f"\nBest Parameters: {rnd.best_params_}")
         print(f"Best CV Score (approx): {rnd.best_score_:.4f}")
     else:
-        print("\nTraining model (quick mode: grid_search=False)...")
+        print("\nTraining model (quick mode)...")
         results = predictor.train(X, y, grid_search=False)
 
-    # Optionally train per-sector models (quick runs, skip tiny sectors)
+    # Optional per-sector quick models
     if per_sector_flag:
         sectors = df["industry_sector_clean"].unique()
-        print(
-            "\nTraining per-sector models (quick mode). This will train one model per sector with >= 50 rows."
-        )
+        print("\nTraining per-sector models (quick mode) for sectors >=50 rows")
         sector_metrics = {}
         for s in sectors:
             subset = df[df["industry_sector_clean"] == s]
