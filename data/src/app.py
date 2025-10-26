@@ -247,17 +247,25 @@ def show_model_performance(training_results, predictor):
         st.warning("Model performance data not available. Please retrain the model.")
         return
 
-    # Performance metrics
+    # Performance metrics (handle missing values safely)
+    def _fmt(value, fmt="{:.4f}"):
+        if value is None:
+            return "N/A"
+        try:
+            return fmt.format(value)
+        except Exception:
+            return str(value)
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("R² Score", f"{training_results['r2']:.4f}")
+        st.metric("R² Score", _fmt(training_results.get("r2"), "{:.4f}"))
     with col2:
-        st.metric("MAE", f"{training_results['mae']:,.0f} MT")
+        st.metric("MAE", _fmt(training_results.get("mae"), "{:,}.0f MT" ) if training_results.get("mae") is not None else "N/A")
     with col3:
-        st.metric("RMSE", f"{training_results['rmse']:,.0f} MT")
+        st.metric("RMSE", _fmt(training_results.get("rmse"), "{:,}.0f MT" ) if training_results.get("rmse") is not None else "N/A")
     with col4:
-        st.metric("CV Score", f"{training_results['cv_mean']:.4f}")
+        st.metric("CV Score", _fmt(training_results.get("cv_mean"), "{:.4f}"))
 
     # Performance visualization
     if "y_test" in training_results and "y_pred" in training_results:
