@@ -1,0 +1,118 @@
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import r2_score, mean_absolute_error
+import joblib
+import pandas as pd
+import numpy as np
+import os
+
+
+# load
+df = pd.read_csv('ghgrp_2021_2023.csv')
+
+
+# keep only required columns and drop missing target
+df = df[['state','industry_sector','reporting_year','total_ghg_emissions_tonnes']].copy()
+df = df.dropna(subset=['total_ghg_emissions_tonnes'])
+df['reporting_year'] = df['reporting_year'].astype(int)
+
+
+# --- Handle multi-sector strings: split into lists ---
+def split_sectors(s):
+    if pd.isna(s):
+        return []
+    return [part.strip() for part in str(s).split(',') if part.strip() != '']
+
+
+df['industry_sectors_list'] = df['industry_sector'].apply(split_sectors)
+
+
+# Build a MultiLabelBinarizer (creates a binary column per sector)
+from sklearn.preprocessing import MultiLabelBinarizer
+mlb = MultiLabelBinarizer(sparse_output=False)
+sector_multi = mlb.fit_transform(df['industry_sectors_list'])
+sector_cols = [f"sector__{c}" for c in mlb.classes_]
+sector_df = pd.DataFrame(sector_multi, columns=sector_cols, index=df.index)
+
+
+# Concatenate multi-hot sector columns into dataframe
+df_model = pd.concat([df[['state','reporting_year','total_ghg_emissions_tonnes']], sector_df], axis=1)
+
+
+# Features & target
+feature_cols = ['state','reporting_year'] + sector_cols
+X = df_model[feature_cols]
+y = df_model['total_ghg_emissions_tonnes']
+
+
+# Train/test split (80/20)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+
+
+# Preprocessing:
+from sklearn.preprocessing import OneHotEncoder
+
+num_cols = ['reporting_year']
+state_col = ['state']
+
+num_pipe = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
+])
+
+state_pipe = Pipeline([
+    ('imputer', SimpleImputer(strategy='constant', fill_value='MISSING')),
+    ('ohe', OneHotEncoder(handle_unknown='ignore', sparse=False))
+])
+
+# sector_cols: pass-through (already 0/1)
+pass_through_sectors = sector_cols
+
+preprocessor = ColumnTransformer([
+    ('num', num_pipe, num_cols),
+    ('state_ohe', state_pipe, state_col),
+    ('sectors', 'passthrough', pass_through_sectors)
+])
+
+
+# Model pipeline
+rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+pipe = Pipeline([
+    ('preproc', preprocessor),
+    ('model', rf)
+])
+
+# Hyperparameter grid for tuning
+param_grid = {
+    'model__n_estimators': [100, 200, 500],
+    'model__max_depth': [None, 10, 20, 30],
+    'model__min_samples_split': [2, 5, 10],
+    'model__min_samples_leaf': [1, 2, 4],
+    'model__max_features': ['sqrt', 'log2', None]
+}
+
+# Grid search with cross-validation
+grid_search = GridSearchCV(pipe, param_grid, cv=5, scoring='r2', n_jobs=-1)
+
+grid_search.fit(X_train, y_train)
+
+print("Best parameters found:", grid_search.best_params_)
+
+# Use best estimator from grid search
+best_pipe = grid_search.best_estimator_
+
+# Evaluate on test set
+y_pred = best_pipe.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f"Test R^2: {r2:.4f}, Test MAE: {mae:,.2f} tonnes")
+
+# Save model pipeline and encoder
+joblib.dump(best_pipe, 'rf_ghg_model.joblib')
+joblib.dump(mlb, 'sector_mlb.joblib')
+
+print("Saved tuned rf_ghg_model.joblib and sector_mlb.joblib")
