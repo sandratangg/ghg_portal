@@ -21,38 +21,241 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for shadcn-ui styling
+# Custom CSS for shadcn-ui styling with dark/light mode support
 st.markdown("""
 <style>
+    /* CSS Custom Properties for theming */
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+        --primary: 222.2 47.4% 11.2%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222.2 84% 4.9%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96%;
+        --accent-foreground: 222.2 84% 4.9%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 222.2 84% 4.9%;
+    }
+
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --card: 222.2 84% 4.9%;
+            --card-foreground: 210 40% 98%;
+            --popover: 222.2 84% 4.9%;
+            --popover-foreground: 210 40% 98%;
+            --primary: 210 40% 98%;
+            --primary-foreground: 222.2 47.4% 11.2%;
+            --secondary: 217.2 32.6% 17.5%;
+            --secondary-foreground: 210 40% 98%;
+            --muted: 217.2 32.6% 17.5%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --accent: 217.2 32.6% 17.5%;
+            --accent-foreground: 210 40% 98%;
+            --destructive: 0 62.8% 30.6%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 217.2 32.6% 17.5%;
+            --input: 217.2 32.6% 17.5%;
+            --ring: 212.7 26.8% 83.9%;
+        }
+    }
+
+    /* Force dark mode when Streamlit is in dark theme */
+    [data-theme="dark"] {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 210 40% 98%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 212.7 26.8% 83.9%;
+    }
+
     .main {
         padding: 1rem;
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
     }
+
     .section-title {
         font-size: 1.5rem;
         font-weight: 600;
         margin-bottom: 1rem;
-        color: hsl(222.2 84% 4.9%);
+        color: hsl(var(--foreground)) !important;
     }
+
     .metric-container {
         display: flex;
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
+
+    /* Update Streamlit components for better theming */
+    .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: hsl(var(--foreground)) !important;
+    }
+
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
+
     .stTabs [data-baseweb="tab"] {
-        background-color: hsl(210 40% 98%);
-        border: 1px solid hsl(214.3 31.8% 91.4%);
+        background-color: hsl(var(--secondary));
+        border: 1px solid hsl(var(--border));
         border-radius: 0.5rem;
         padding: 0.5rem 1rem;
+        color: hsl(var(--secondary-foreground));
     }
+
     .stTabs [aria-selected="true"] {
-        background-color: hsl(222.2 84% 4.9%);
-        color: hsl(210 40% 98%);
+        background-color: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+        border-color: hsl(var(--primary));
+    }
+
+    /* Sidebar styling */
+    .css-1d391kg, .css-1544g2n {
+        background-color: hsl(var(--card));
+        color: hsl(var(--card-foreground));
+    }
+
+    /* Metric cards */
+    .metric-card {
+        background-color: hsl(var(--card));
+        color: hsl(var(--card-foreground));
+        border: 1px solid hsl(var(--border));
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+    
+    /* Data frames and tables */
+    .stDataFrame, .stTable {
+        background-color: hsl(var(--card));
+        color: hsl(var(--card-foreground));
+    }
+
+    /* Input elements */
+    .stSelectbox > div > div, .stMultiSelect > div > div {
+        background-color: hsl(var(--card));
+        color: hsl(var(--card-foreground));
+        border-color: hsl(var(--border));
+    }
+
+    /* Buttons */
+    .stButton > button {
+        background-color: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+        border-color: hsl(var(--primary));
+    }
+
+    .stButton > button:hover {
+        background-color: hsl(var(--primary) / 0.9);
+    }
+
+    /* Success/Error messages */
+    .stSuccess {
+        background-color: hsl(142.1 76.2% 36.3% / 0.1);
+        color: hsl(142.1 70.6% 45.3%);
+        border-color: hsl(142.1 76.2% 36.3%);
+    }
+
+    .stError {
+        background-color: hsl(var(--destructive) / 0.1);
+        color: hsl(var(--destructive));
+        border-color: hsl(var(--destructive));
+    }
+
+    .stInfo {
+        background-color: hsl(var(--primary) / 0.1);
+        color: hsl(var(--primary));
+        border-color: hsl(var(--primary));
     }
 </style>
+
+<script>
+    // Theme detection and sync with Streamlit
+    function updateTheme() {
+        const streamlitTheme = window.parent.document.querySelector('[data-testid="stApp"]');
+        const isDark = streamlitTheme && streamlitTheme.getAttribute('data-theme') === 'dark';
+        
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    }
+
+    // Update theme on load
+    updateTheme();
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    const streamlitApp = window.parent.document.querySelector('[data-testid="stApp"]');
+    if (streamlitApp) {
+        observer.observe(streamlitApp, {
+            attributes: true,
+            attributeFilter: ['data-theme']
+        });
+    }
+</script>
 """, unsafe_allow_html=True)
+
+def detect_theme():
+    """Detect if Streamlit is in dark mode"""
+    # Check if the user has set a theme preference
+    try:
+        # This will work if the theme is set in Streamlit config
+        return st.get_option('theme.base') == 'dark'
+    except:
+        # Fallback to system preference detection
+        return False
+
+def get_theme_colors():
+    """Get theme-appropriate colors"""
+    is_dark = detect_theme()
+    
+    if is_dark:
+        return {
+            'background': 'hsl(222.2 84% 4.9%)',
+            'foreground': 'hsl(210 40% 98%)',
+            'primary': 'hsl(210 40% 98%)',
+            'secondary': 'hsl(217.2 32.6% 17.5%)',
+            'muted': 'hsl(215 20.2% 65.1%)',
+            'border': 'hsl(217.2 32.6% 17.5%)'
+        }
+    else:
+        return {
+            'background': 'hsl(0 0% 100%)',
+            'foreground': 'hsl(222.2 84% 4.9%)',
+            'primary': 'hsl(222.2 47.4% 11.2%)',
+            'secondary': 'hsl(210 40% 96%)',
+            'muted': 'hsl(215.4 16.3% 46.9%)',
+            'border': 'hsl(214.3 31.8% 91.4%)'
+        }
 
 @st.cache_data
 def load_data():
@@ -84,6 +287,18 @@ def load_or_train_model(df):
         return predictor, results
 
 def main():
+    # Theme toggle in sidebar
+    with st.sidebar:
+        st.markdown("### Settings")
+        theme_toggle = ui.switch(
+            default_checked=detect_theme(),
+            label="Dark Mode",
+            key="theme_toggle"
+        )
+        
+        if theme_toggle != detect_theme():
+            st.rerun()
+    
     # Header with shadcn-ui card
     ui.card(
         content=st.markdown("""
@@ -160,7 +375,8 @@ def show_data_overview(df):
         )
 
 def show_dashboard_overview(df):
-    st.markdown('<div class="section-title">Dashboard Overview</div>', unsafe_allow_html=True)
+    colors = get_theme_colors()
+    st.markdown(f'<div class="section-title" style="color: {colors["foreground"]}">Dashboard Overview</div>', unsafe_allow_html=True)
     
     # Key visualizations in cards
     col1, col2 = st.columns(2)
@@ -187,7 +403,8 @@ def show_dashboard_overview(df):
     )
     
 def show_detailed_analysis(df):
-    st.markdown('<div class="section-title">Detailed Analysis</div>', unsafe_allow_html=True)
+    colors = get_theme_colors()
+    st.markdown(f'<div class="section-title" style="color: {colors["foreground"]}">Detailed Analysis</div>', unsafe_allow_html=True)
     
     # Analysis tabs
     analysis_tabs = ui.tabs(
@@ -305,7 +522,8 @@ def show_time_analysis(df):
         )
 
 def show_emissions_predictor(df, predictor):
-    st.markdown('<div class="section-title">Emissions Predictor</div>', unsafe_allow_html=True)
+    colors = get_theme_colors()
+    st.markdown(f'<div class="section-title" style="color: {colors["foreground"]}">Emissions Predictor</div>', unsafe_allow_html=True)
     
     ui.alert(
         title="Machine Learning Prediction",
@@ -472,7 +690,8 @@ def make_prediction(df, predictor, state, sector, year):
             st.info("Feature importance not available for this model type.")
 
 def show_model_performance(training_results, predictor):
-    st.markdown('<div class="section-title">Model Performance</div>', unsafe_allow_html=True)
+    colors = get_theme_colors()
+    st.markdown(f'<div class="section-title" style="color: {colors["foreground"]}">Model Performance</div>', unsafe_allow_html=True)
     
     if training_results is None:
         ui.alert(
