@@ -18,7 +18,7 @@ st.set_page_config(
     page_title="GHG Emissions Prediction Portal",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Custom CSS for shadcn-ui styling with dark/light mode support
@@ -113,11 +113,7 @@ st.markdown("""
         border-color: hsl(var(--primary));
     }
 
-    /* Sidebar styling */
-    .css-1d391kg, .css-1544g2n {
-        background-color: hsl(var(--card));
-        color: hsl(var(--card-foreground));
-    }
+
 
     /* Metric cards */
     .metric-card {
@@ -263,9 +259,11 @@ def load_or_train_model(df):
         return predictor, results
 
 def main():
-    # Theme toggle in sidebar
-    with st.sidebar:
-        st.markdown("### Settings")
+    # Header with theme toggle and shadcn-ui card
+    col1, col2 = st.columns([4, 1])
+    
+    with col2:
+        st.markdown("")  # Add some spacing
         theme_toggle = ui.switch(
             default_checked=detect_theme(),
             label="Dark Mode",
