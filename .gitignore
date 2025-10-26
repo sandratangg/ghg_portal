@@ -1,0 +1,10 @@
+# Ignore trained model artifacts and caches
+data/models/*.pkl
+
+# Python cache and bytecode
+__pycache__/
+*.pyc
+
+# Visual Studio / editor temporary files
+.vscode/
+*.swp
