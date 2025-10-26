@@ -1,102 +1,88 @@
-#!/usr/bin/env python3
-
-"""
-Complete pipeline to train the machine learning model and prepare the application.
-Run this script before launching the Streamlit app.
-"""
-
 import os
 import sys
 import pandas as pd
-import warnings
-warnings.filterwarnings('ignore')
+import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
 
-# Add the src directory to Python path
+# Add the data/src directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'data', 'src'))
-
-from data_processing import load_and_clean_data, prepare_features
 from model import EmissionsPredictor
+from data_processing import load_and_clean_data, prepare_features
+
+def load_data():
+    possible_paths = [
+        "data/processed/emissions_cleaned.csv",
+        "data/raw/epa_ghgrp_2021_2023_aggregate.csv"
+    ]
+
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"📂 Loading dataset from {path} ...")
+            df = pd.read_csv(path)
+            print(f"✅ Loaded {len(df):,} rows and {df.shape[1]} columns")
+            break
+    else:
+        raise FileNotFoundError("❌ Could not find dataset in data/processed or data/raw")
+
+    # Use the actual column names from the CSV
+    df = df.dropna(subset=["state", "industry_sector", "reporting_year", "total_ghg_emissions_tonnes"])
+    
+    # Create the cleaned industry sector column
+    df['industry_sector_clean'] = df['industry_sector'].apply(lambda x: x.split(',')[0].strip() if pd.notna(x) else 'Other')
+    
+    X = df[["state", "industry_sector_clean", "reporting_year"]].copy()
+    y = df["total_ghg_emissions_tonnes"]
+    return X, y
 
 def main():
-    print("🌍 GHG Emissions Portal - Model Training Pipeline")
-    print("=" * 50)
-    
-    # Step 1: Load and clean data
-    
-    try:
-        df = load_and_clean_data('data/raw/epa_ghgrp_2021_2023_aggregate.csv')
-        print(f"Data loaded successfully: {df.shape[0]} facilities, {df.shape[1]} features")
-    except Exception as e:
-        print(f"Error loading data: {e}")
-        return
-    
-    # Step 2: Prepare features
-    try:
-        X, y = prepare_features(df)
-        print(f"Features prepared: {X.shape[1]} features for modeling")
-        print(f"Target variable (emissions) range: {y.min():,.0f} - {y.max():,.0f} metric tons")
-    except Exception as e:
-        print(f"Error preparing features: {e}")
-        return
-    
-    # Step 3: Train Random Forest model
-    try:
-        rf_predictor = EmissionsPredictor(model_type='random_forest')
-        rf_results = rf_predictor.train(X, y)
-        rf_predictor.save_model('data/models/random_forest_model.pkl')
-        print("Random Forest model trained and saved")
-    except Exception as e:
-        print(f"Error training Random Forest: {e}")
-        return
-    
-    # Step 4: Train Linear Regression baseline
-    try:
-        lr_predictor = EmissionsPredictor(model_type='linear')
-        lr_results = lr_predictor.train(X, y)
-        lr_predictor.save_model('data/models/linear_model.pkl')
-        print("Linear Regression model trained and saved")
-    except Exception as e:
-        print(f"Error training Linear Regression: {e}")
-        return
-    
-    # Step 5: Model comparison
-    print(f"Random Forest:")
-    print(f"  R² Score: {rf_results['r2']:.4f}")
-    print(f"  MAE: {rf_results['mae']:,.0f} metric tons")
-    print(f"  RMSE: {rf_results['rmse']:,.0f} metric tons")
-    
-    print(f"\nLinear Regression:")
-    print(f"  R² Score: {lr_results['r2']:.4f}")
-    print(f"  MAE: {lr_results['mae']:,.0f} metric tons")
-    print(f"  RMSE: {lr_results['rmse']:,.0f} metric tons")
-    
-    # Select best model
-    if rf_results['r2'] > lr_results['r2']:
-        best_model = rf_predictor
-        best_results = rf_results
-        print(f"R² = {rf_results['r2']:.4f}")
-        best_model.save_model('data/models/trained_model.pkl')
-    else:
-        best_model = lr_predictor
-        best_results = lr_results
-        print(f"R² = {lr_results['r2']:.4f}")
-        best_model.save_model('data/models/trained_model.pkl')
-    
-    # Step 6: Test predictions
-    test_cases = [
-        ("TX", "Power Plants", 2023),
-        ("CA", "Oil & Gas", 2022),
-        ("NY", "Waste", 2021),
-    ]
-    
-    for state, sector, year in test_cases:
-        try:
-            prediction = best_model.predict(state, sector, year)
-            print(f"  {state} {sector} ({year}): {prediction:,.0f} metric tons CO₂e")
-        except Exception as e:
-            print(f"  {state} {sector} ({year}): Error - {e}")
-    
-    
+    X, y = load_data()
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    predictor = EmissionsPredictor()
+
+    # Preprocess and fit base model
+    X_train_encoded = predictor.preprocess(X_train, fit=True)
+    X_test_encoded = predictor.preprocess(X_test, fit=False)
+
+    print("\n🚀 Starting GridSearchCV hyperparameter tuning...")
+    param_grid = {
+        "n_estimators": [100, 200, 300],
+        "max_depth": [None, 10, 20, 30],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4]
+    }
+
+    grid_search = GridSearchCV(
+        predictor.model,
+        param_grid,
+        cv=3,
+        scoring="r2",
+        verbose=2,
+        n_jobs=-1
+    )
+
+    grid_search.fit(X_train_encoded, y_train)
+    best_model = grid_search.best_estimator_
+    print(f"\n🏆 Best Parameters: {grid_search.best_params_}")
+    print(f"🏅 Best R2 Score: {grid_search.best_score_:.4f}")
+
+    # Evaluate on test set
+    predictor.model = best_model
+    y_pred = predictor.predict(X_test)
+    metrics = predictor.evaluate(y_test, y_pred)
+    print("\n📊 Final Test Metrics:")
+    for k, v in metrics.items():
+        print(f" - {k}: {v:.4f}")
+
+    # Retrain on full data
+    print("\n🔁 Retraining best model on full dataset...")
+    X_encoded = predictor.preprocess(X, fit=True)
+    predictor.model.fit(X_encoded, y)
+
+    # Save model
+    predictor.save_model("data/models/trained_model.pkl")
+    print("\n✅ Training complete! Model saved successfully.")
 
 if __name__ == "__main__":
     main()

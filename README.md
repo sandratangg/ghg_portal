@@ -43,8 +43,8 @@ This portal addresses **Challenge 2 - Data Modeling Portal** by providing:
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/sandratangg/GreenHouseGas_Portal.git
-cd GreenHouseGas_Portal
+git clone https://github.com/sandratangg/ghg_portal.git
+cd ghg_portal
 ```
 
 2. **Install dependencies**
