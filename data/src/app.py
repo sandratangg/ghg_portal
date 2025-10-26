@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-# Add the src directory to Python path
+# Add the src  to Python 
 sys.path.append(os.path.dirname(__file__))
 
 from data_processing import load_and_clean_data, prepare_features
@@ -13,7 +13,7 @@ from visualizations import (plot_top_sectors, plot_state_map, plot_yearly_trends
                            plot_outliers, plot_model_performance, create_summary_dashboard)
 from model import EmissionsPredictor
 
-# Configure Streamlit page
+# Streamlit page
 st.set_page_config(
     page_title="GHG Emissions Prediction Portal",
     page_icon="📊",
@@ -21,177 +21,47 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for shadcn-ui styling with dark/light mode support
+# CSS for shadcn-ui styling with dark/light mode
 st.markdown("""
 <style>
-    /* Light mode colors */
+    /* Simple theme variables */
     :root {
-        --background: #ffffff;
-        --foreground: #0f172a;
-        --card: #ffffff;
-        --card-foreground: #0f172a;
+        --bg: #ffffff;
+        --text: #0f172a;
         --primary: #1e293b;
-        --primary-foreground: #ffffff;
-        --secondary: #f1f5f9;
-        --secondary-foreground: #0f172a;
-        --muted: #f1f5f9;
-        --muted-foreground: #64748b;
         --border: #e2e8f0;
     }
 
     /* Dark mode */
-    @media (prefers-color-scheme: dark) {
+    @media (prefers-color-scheme: dark), [data-theme="dark"] {
         :root {
-            --background: #0f172a;
-            --foreground: #f8fafc;
-            --card: #1e293b;
-            --card-foreground: #f8fafc;
-            --primary: #f8fafc;
-            --primary-foreground: #0f172a;
-            --secondary: #334155;
-            --secondary-foreground: #f8fafc;
-            --muted: #334155;
-            --muted-foreground: #94a3b8;
-            --border: #334155;
+            --bg: #0f172a;
+            --text: #f8fafc;
+            --primary: #3b82f6;
+            --border: #374151;
         }
     }
 
-    /* Force dark mode when Streamlit is in dark theme */
-    [data-theme="dark"] {
-        --background: #0f172a;
-        --foreground: #f8fafc;
-        --card: #1e293b;
-        --card-foreground: #f8fafc;
-        --primary: #f8fafc;
-        --primary-foreground: #0f172a;
-        --secondary: #334155;
-        --secondary-foreground: #f8fafc;
-        --muted: #334155;
-        --muted-foreground: #94a3b8;
-        --border: #334155;
-    }
-
-    .main {
-        padding: 1rem;
-        background-color: hsl(var(--background));
-        color: hsl(var(--foreground));
-    }
-
-    .section-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        color: hsl(var(--foreground)) !important;
-    }
-
-    .metric-container {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    /* Update Streamlit components for better theming */
-    .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-        color: hsl(var(--foreground)) !important;
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        background-color: hsl(var(--secondary));
-        border: 1px solid hsl(var(--border));
-        border-radius: 0.5rem;
-        padding: 0.5rem 1rem;
-        color: hsl(var(--secondary-foreground));
-    }
-
-    .stTabs [aria-selected="true"] {
-        background-color: hsl(var(--primary));
-        color: hsl(var(--primary-foreground));
-        border-color: hsl(var(--primary));
-    }
-
-
-
-    /* Metric cards */
-    .metric-card {
-        background-color: hsl(var(--card));
-        color: hsl(var(--card-foreground));
-        border: 1px solid hsl(var(--border));
-        border-radius: 0.5rem;
-        padding: 1rem;
-    }
-    
-    /* Data frames and tables */
-    .stDataFrame, .stTable {
-        background-color: hsl(var(--card));
-        color: hsl(var(--card-foreground));
-    }
-
-    /* Input elements */
-    .stSelectbox > div > div, .stMultiSelect > div > div {
-        background-color: hsl(var(--card));
-        color: hsl(var(--card-foreground));
-        border-color: hsl(var(--border));
+    /* Apply theme to all elements */
+    .main, .stMarkdown, .stMarkdown * {
+        background-color: var(--bg) !important;
+        color: var(--text) !important;
     }
 
     /* Buttons */
     .stButton > button {
-        background-color: hsl(var(--primary));
-        color: hsl(var(--primary-foreground));
-        border-color: hsl(var(--primary));
-    }
-
-    .stButton > button:hover {
-        background-color: hsl(var(--primary) / 0.9);
-    }
-
-    /* Success/Error messages */
-    .stSuccess {
-        background-color: hsl(142.1 76.2% 36.3% / 0.1);
-        color: hsl(142.1 70.6% 45.3%);
-        border-color: hsl(142.1 76.2% 36.3%);
-    }
-
-    .stError {
-        background-color: hsl(var(--destructive) / 0.1);
-        color: hsl(var(--destructive));
-        border-color: hsl(var(--destructive));
-    }
-
-    .stInfo {
-        background-color: hsl(var(--primary) / 0.1);
-        color: hsl(var(--primary));
-        border-color: hsl(var(--primary));
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
     }
 </style>
 
 <script>
-    // Theme detection and sync with Streamlit
-    function updateTheme() {
-        const streamlitTheme = window.parent.document.querySelector('[data-testid="stApp"]');
-        const isDark = streamlitTheme && streamlitTheme.getAttribute('data-theme') === 'dark';
-        
-        if (isDark) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-        }
-    }
-
-    // Update theme on load
-    updateTheme();
-
-    // Watch for theme changes
-    const observer = new MutationObserver(updateTheme);
-    const streamlitApp = window.parent.document.querySelector('[data-testid="stApp"]');
-    if (streamlitApp) {
-        observer.observe(streamlitApp, {
-            attributes: true,
-            attributeFilter: ['data-theme']
-        });
+    // Simple theme sync
+    const app = window.parent.document.querySelector('[data-testid="stApp"]');
+    if (app?.getAttribute('data-theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
     }
 </script>
 """, unsafe_allow_html=True)
@@ -262,16 +132,6 @@ def main():
     # Header with theme toggle and shadcn-ui card
     col1, col2 = st.columns([4, 1])
     
-    with col2:
-        st.markdown("")  # Add some spacing
-        theme_toggle = ui.switch(
-            default_checked=detect_theme(),
-            label="Dark Mode",
-            key="theme_toggle"
-        )
-        
-        if theme_toggle != detect_theme():
-            st.rerun()
     
     # Header with shadcn-ui card
     ui.card(
