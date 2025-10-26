@@ -12,11 +12,12 @@ from data_processing import load_and_clean_data, prepare_features
 from visualizations import (plot_top_sectors, plot_state_map, plot_yearly_trends, 
                            plot_outliers, plot_model_performance, create_summary_dashboard)
 from model import EmissionsPredictor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 # Streamlit page
 st.set_page_config(
     page_title="GHG Emissions Prediction Portal",
-    page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -112,7 +113,39 @@ def load_or_train_model(df):
         predictor = EmissionsPredictor()
         predictor.load_model()
         st.success("Loaded pre-trained model")
-        return predictor, None
+        # If the loaded predictor contains persisted training results, use them
+        persisted_results = getattr(predictor, '_training_results', None)
+        if persisted_results is not None:
+            st.info("Using persisted training results from saved model")
+            return predictor, persisted_results
+
+        # Otherwise attempt to compute performance on a held-out split of the provided data
+        try:
+            X, y = prepare_features(df)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            y_pred = predictor.predict(X_test)
+
+            r2 = float(r2_score(y_test, y_pred))
+            mae = float(mean_absolute_error(y_test, y_pred))
+            try:
+                rmse = float(mean_squared_error(y_test, y_pred, squared=False))
+            except TypeError:
+                rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
+
+            results = {
+                'R2 Score': r2,
+                'MAE': mae,
+                'RMSE': rmse,
+                'CV Score': None,
+                'y_test': y_test,
+                'y_pred': y_pred,
+                'feature_importance': predictor.get_feature_importance(),
+            }
+        except Exception as e:
+            st.warning(f"Could not compute performance metrics: {e}")
+            results = None
+
+        return predictor, results
     except Exception as e:
         # Train new model
         st.info("Training new model...")

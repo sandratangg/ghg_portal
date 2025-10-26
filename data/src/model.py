@@ -108,6 +108,7 @@ class EmissionsPredictor:
             "encoders": self.label_encoders,
             "scaler": self.scaler,
             "feature_names": getattr(self, "_feature_names", None),
+            "training_results": getattr(self, "_training_results", None),
         }, path)
         print(f"Model saved to {path}")
 
@@ -118,6 +119,9 @@ class EmissionsPredictor:
         self.scaler = data.get("scaler", None)
         if data.get("feature_names") is not None:
             self._feature_names = data.get("feature_names")
+        # load persisted training results if available
+        if data.get("training_results") is not None:
+            self._training_results = data.get("training_results")
         print(f"Loaded model from {path}")
     
     def get_feature_importance(self):
@@ -213,5 +217,19 @@ class EmissionsPredictor:
             "y_pred": pd.Series(y_pred),
             "feature_importance": feature_importance,
         }
+
+        # Also store a UI-friendly copy of training results (keys used by the app)
+        ui_results = {
+            'R2 Score': float(metrics['r2']),
+            'MAE': float(metrics['mae']),
+            'RMSE': float(metrics['rmse']),
+            'CV Score': float(metrics['cv_mean']) if metrics['cv_mean'] is not None else None,
+            'y_test': y_test.reset_index(drop=True),
+            'y_pred': pd.Series(y_pred),
+            'feature_importance': feature_importance,
+        }
+
+        # persist in the instance so save_model can write it out
+        self._training_results = ui_results
 
         return results
