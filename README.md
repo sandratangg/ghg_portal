@@ -1,11 +1,8 @@
-<<<<<<< HEAD
-# ghg_portal
-=======
-# 🌍 GHG Emissions Prediction Portal
+# GHG Emissions Prediction Portal
 
 A comprehensive web-based machine learning application for analyzing and predicting greenhouse gas emissions from EPA facility data (2021-2023).
 
-## 🎯 Project Overview
+## Project Overview
 
 This portal addresses **Challenge 2 - Data Modeling Portal** by providing:
 
@@ -14,7 +11,7 @@ This portal addresses **Challenge 2 - Data Modeling Portal** by providing:
 3. **Comprehensive Analysis** - Identify trends, outliers, and key emission drivers
 4. **User-Friendly Interface** - Interactive Streamlit web application
 
-## 📊 Features
+## Features
 
 ### Data Exploration & Visualizations
 - **Top 10 Emitting Sectors** - Bar chart analysis
@@ -36,7 +33,7 @@ This portal addresses **Challenge 2 - Data Modeling Portal** by providing:
 - Compare with similar facilities
 - View model performance metrics
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.8+
@@ -67,7 +64,7 @@ streamlit run data/src/app.py
 
 5. **Open your browser** to `http://localhost:8501`
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ghg-portal/
@@ -90,7 +87,7 @@ ghg-portal/
 │       └── visualizations.py         # Plotting functions
 ```
 
-## 📈 Model Performance
+##Model Performance
 
 The Random Forest model achieves:
 - **R² Score**: ~0.85+ (explains 85%+ of emission variance)
@@ -103,7 +100,7 @@ The Random Forest model achieves:
 - **Year-over-year trends** show slight increases in some sectors
 - **Outlier facilities** represent <5% but contribute significantly to total emissions
 
-## 🔧 Technical Details
+##Technical Details
 
 ### Data Processing
 - **Dataset**: EPA GHGRP 2021-2023 (19,513 facility records)
@@ -123,43 +120,33 @@ The Random Forest model achieves:
 - **Caching**: Efficient data loading and model inference
 - **Responsive Design**: Multi-column layouts and navigation
 
-## 🎨 Application Sections
+## Application Sections
 
-### 📊 Dashboard Overview
+### Dashboard Overview
 - Key metrics summary
 - Top emitting sectors visualization
 - State-by-state emissions map
 - Yearly trend analysis
 
-### 📈 Detailed Analysis
+### Detailed Analysis
 - Interactive outlier analysis
 - Top 20 emitting facilities
 - Sector statistics and comparisons
 - Data exploration tools
 
-### 🔮 Emissions Predictor
+### Emissions Predictor
 - Input facility characteristics
 - Real-time ML predictions
 - Comparison with similar facilities
 - Model confidence indicators
 
-### 🤖 Model Performance
+### Model Performance
 - R², MAE, RMSE metrics
 - Actual vs Predicted plots
 - Feature importance analysis
 - Model interpretation
 
-## 🏆 Rubric Alignment
-
-| Criteria | Implementation | Score |
-|----------|----------------|-------|
-| **Exploration** | Comprehensive data analysis in Jupyter notebook + interactive dashboard | ⭐⭐⭐⭐⭐ |
-| **Visualization & Storytelling** | Interactive Streamlit app with multiple chart types and user exploration | ⭐⭐⭐⭐⭐ |
-| **Accuracy** | Random Forest with R² > 0.8, proper train/test split, cross-validation | ⭐⭐⭐⭐⭐ |
-| **Interactivity** | User input forms, real-time predictions, facility comparisons | ⭐⭐⭐⭐⭐ |
-| **Presentation & Clarity** | Clean UI, comprehensive documentation, intuitive navigation | ⭐⭐⭐⭐⭐ |
-
-## 🔍 Key Findings
+## Key Findings
 
 1. **Power Plants** dominate emissions (largest sector)
 2. **Geographic Concentration**: TX, CA, LA are top emitting states
@@ -167,21 +154,3 @@ The Random Forest model achieves:
 4. **Outliers**: Few facilities (top 5%) contribute disproportionately
 5. **Predictability**: State and sector are strong emission predictors
 
-## 🚀 Future Enhancements
-
-- Add more years of historical data
-- Include weather/economic variables
-- Implement deep learning models
-- Add facility-level details and comparisons
-- Export predictions and analysis reports
-
-## 📞 Contact
-
-**Sandra Tang**
-- GitHub: [@sandratangg](https://github.com/sandratangg)
-- Repository: [GreenHouseGas_Portal](https://github.com/sandratangg/ghg_portal)
-
----
-
-*Built for the EPA GHG Emissions Modeling Challenge - Demonstrating data science excellence in environmental analytics* 🌱
->>>>>>> 3253c5f (Challenge 2 Web portal)
