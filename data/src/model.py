@@ -66,3 +66,26 @@ class EmissionsPredictor:
         self.label_encoders = data["encoders"]
         self.scaler = data["scaler"]
         print(f"📦 Loaded model from {path}")
+    
+    def get_feature_importance(self):
+        """Get feature importance for RandomForest model"""
+        if hasattr(self.model, 'feature_importances_'):
+            # Get feature names from encoders
+            feature_names = []
+            for col in self.label_encoders.keys():
+                feature_names.append(col)
+            
+            # Add any remaining numeric features
+            if hasattr(self, '_feature_names'):
+                feature_names = self._feature_names
+            else:
+                # Default feature names based on typical structure
+                feature_names = ['state', 'industry_sector_clean', 'reporting_year']
+            
+            importance_df = pd.DataFrame({
+                'feature': feature_names[:len(self.model.feature_importances_)],
+                'importance': self.model.feature_importances_
+            }).sort_values('importance', ascending=False)
+            
+            return importance_df
+        return None

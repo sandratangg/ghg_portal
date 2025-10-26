@@ -53,17 +53,20 @@ def load_or_train_model(df):
     """Load existing model or train a new one"""
     try:
         # Try to load existing model
-        predictor = EmissionsPredictor.load_model()
+        predictor = EmissionsPredictor()
+        predictor.load_model()
         st.success("Loaded pre-trained model")
         return predictor, None
-    except:
+    except Exception as e:
         # Train new model
         st.info("Training new model...")
-        predictor = EmissionsPredictor(model_type='random_forest')
+        predictor = EmissionsPredictor()
         X, y = prepare_features(df)
         
         with st.spinner('Training Random Forest model...'):
-            results = predictor.train(X, y)
+            predictor.fit(X, y)
+            y_pred = predictor.predict(X)
+            results = predictor.evaluate(y, y_pred)
         
         predictor.save_model()
         st.success("Model trained successfully!")
@@ -230,7 +233,13 @@ def show_emissions_predictor(df, predictor):
     if st.button("Predict Emissions", type="primary"):
         with st.spinner('Making prediction...'):
             try:
-                prediction = predictor.predict(state, sector, year)
+                # Create input DataFrame for prediction
+                input_data = pd.DataFrame({
+                    'state': [state],
+                    'industry_sector_clean': [sector],
+                    'reporting_year': [year]
+                })
+                prediction = predictor.predict(input_data)[0]
                 
                 # Display prediction
                 st.success("Prediction Complete!")
