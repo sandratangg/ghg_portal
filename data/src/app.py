@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit_shadcn_ui as ui
 import pandas as pd
 import numpy as np
 import os
@@ -15,30 +16,40 @@ from model import EmissionsPredictor
 # Configure Streamlit page
 st.set_page_config(
     page_title="GHG Emissions Prediction Portal",
-    page_icon="🌍",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for shadcn-ui styling
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 3em;
-        color: #2E8B57;
-        text-align: center;
-        margin-bottom: 30px;
+    .main {
+        padding: 1rem;
     }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #2E8B57;
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: hsl(222.2 84% 4.9%);
     }
-    .section-header {
-        color: #2E8B57;
-        border-bottom: 2px solid #2E8B57;
-        padding-bottom: 10px;
+    .metric-container {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: hsl(210 40% 98%);
+        border: 1px solid hsl(214.3 31.8% 91.4%);
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: hsl(222.2 84% 4.9%);
+        color: hsl(210 40% 98%);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -73,89 +84,187 @@ def load_or_train_model(df):
         return predictor, results
 
 def main():
-    # Header
-    st.markdown('<h1 class="main-header">GHG Emissions Prediction Portal</h1>', 
-                unsafe_allow_html=True)
+    # Header with shadcn-ui card
+    ui.card(
+        content=st.markdown("""
+        # GHG Emissions Prediction Portal
+        
+        Analyze EPA greenhouse gas reporting data from 2021-2023 and predict facility emissions using machine learning.
+        This dashboard provides comprehensive insights into emissions patterns across states and industry sectors.
+        """),
+        key="header_card"
+    )
     
-    st.markdown("""
-    Welcome to the **GHG Emissions Prediction Portal**! This interactive dashboard analyzes EPA greenhouse gas 
-    reporting data from 2021-2023 and provides machine learning predictions for facility emissions.
-    """)
-    
-    # Load data
+    # Load data with progress indicator
     with st.spinner('Loading EPA GHG data...'):
         df = load_data()
+    
+    # Show data overview with metric cards
+    show_data_overview(df)
     
     # Load/train model
     predictor, training_results = load_or_train_model(df)
     
-    # Sidebar navigation
-    st.sidebar.title("Navigation")
-    page = st.sidebar.selectbox(
-        "Choose a section:",
-        ["Dashboard Overview", "Detailed Analysis", "Emissions Predictor", "Model Performance"]
+    # Main navigation using tabs
+    tabs = ui.tabs(
+        options=["Dashboard", "Analysis", "Predictor", "Performance"],
+        default_value="Dashboard",
+        key="main_navigation"
     )
     
-    if page == "Dashboard Overview":
+    page = tabs
+    
+    if page == "Dashboard":
         show_dashboard_overview(df)
-    elif page == "Detailed Analysis":
+    elif page == "Analysis":
         show_detailed_analysis(df)
-    elif page == "Emissions Predictor":
+    elif page == "Predictor":
         show_emissions_predictor(df, predictor)
-    elif page == "Model Performance":
+    elif page == "Performance":
         show_model_performance(training_results, predictor)
 
-def show_dashboard_overview(df):
-    st.markdown('<h2 class="section-header">Dashboard Overview</h2>', 
-                unsafe_allow_html=True)
-    
-    # Key metrics
-    metrics = create_summary_dashboard(df)
-    
-    col1, col2, col3, col4, col5 = st.columns(5)
+def show_data_overview(df):
+    """Display data overview with metric cards"""
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Emissions", metrics['Total Emissions'])
-    with col2:
-        st.metric("Avg per Facility", metrics['Average per Facility'])
-    with col3:
-        st.metric("Total Facilities", metrics['Total Facilities'])
-    with col4:
-        st.metric("States Covered", metrics['States Covered'])
-    with col5:
-        st.metric("Industry Sectors", metrics['Industry Sectors'])
+        ui.metric_card(
+            title="Total Facilities",
+            content=f"{len(df):,}",
+            description="EPA reporting facilities",
+            key="metric_facilities"
+        )
     
-    # Main visualizations
+    with col2:
+        ui.metric_card(
+            title="Industry Sectors",
+            content=f"{df['industry_sector_clean'].nunique()}",
+            description="Different sectors",
+            key="metric_sectors"
+        )
+    
+    with col3:
+        ui.metric_card(
+            title="States Covered",
+            content=f"{df['state'].nunique()}",
+            description="US states/territories",
+            key="metric_states"
+        )
+    
+    with col4:
+        ui.metric_card(
+            title="Total Emissions",
+            content=f"{df['total_ghg_emissions_tonnes'].sum()/1e6:.1f}M",
+            description="Metric tons CO₂e",
+            key="metric_emissions"
+        )
+
+def show_dashboard_overview(df):
+    st.markdown('<div class="section-title">Dashboard Overview</div>', unsafe_allow_html=True)
+    
+    # Key visualizations in cards
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Top Emitting Sectors")
-        fig_sectors = plot_top_sectors(df, top_n=10)
-        st.plotly_chart(fig_sectors, use_container_width=True)
+        ui.card(
+            content=st.plotly_chart(plot_top_sectors(df), use_container_width=True),
+            title="Top Emitting Sectors",
+            key="sectors_card"
+        )
     
     with col2:
-        st.subheader("Emissions by State")
-        fig_map = plot_state_map(df)
-        st.plotly_chart(fig_map, use_container_width=True)
+        ui.card(
+            content=st.plotly_chart(plot_yearly_trends(df), use_container_width=True),
+            title="Emission Trends Over Time",
+            key="trends_card"
+        )
     
-    # Yearly trends
-    st.subheader("Emissions Trends (2021-2023)")
-    fig_trends = plot_yearly_trends(df)
-    st.plotly_chart(fig_trends, use_container_width=True)
-
+    # State map in full width card
+    ui.card(
+        content=st.plotly_chart(plot_state_map(df), use_container_width=True),
+        title="Emissions by State",
+        key="map_card"
+    )
+    
 def show_detailed_analysis(df):
-    st.markdown('<h2 class="section-header">Detailed Analysis</h2>', 
-                unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Detailed Analysis</div>', unsafe_allow_html=True)
     
-    # Outlier analysis
-    st.subheader("Outlier Analysis")
+    # Analysis tabs
+    analysis_tabs = ui.tabs(
+        options=["Outliers", "Sectors", "States", "Time Trends"],
+        default_value="Outliers",
+        key="analysis_tabs"
+    )
     
-    threshold = st.slider("Outlier Threshold (Percentile)", min_value=90, max_value=99, value=95)
+    if analysis_tabs == "Outliers":
+        ui.card(
+            content=show_outlier_analysis(df),
+            title="Outlier Analysis",
+            key="outliers_analysis_card"
+        )
+    
+    elif analysis_tabs == "Sectors":
+        ui.card(
+            content=show_sector_analysis(df),
+            title="Industry Sector Analysis",
+            key="sector_analysis_card"
+        )
+    
+    elif analysis_tabs == "States":
+        ui.card(
+            content=show_state_analysis(df),
+            title="State-by-State Analysis",
+            key="state_analysis_card"
+        )
+    
+    elif analysis_tabs == "Time Trends":
+        ui.card(
+            content=show_time_analysis(df),
+            title="Temporal Analysis",
+            key="time_analysis_card"
+        )
+
+def show_outlier_analysis(df):
+    """Show outlier analysis with controls"""
+    threshold = st.slider(
+        "Outlier Threshold (Percentile)",
+        min_value=90,
+        max_value=99,
+        value=95,
+        key="outlier_threshold"
+    )
+    
     fig_outliers = plot_outliers(df, threshold_percentile=threshold)
     st.plotly_chart(fig_outliers, use_container_width=True)
     
-    # Data exploration options
-    st.subheader("Data Exploration")
+    # Show outlier statistics
+    outlier_count = len(df[df['total_ghg_emissions_tonnes'] > df['total_ghg_emissions_tonnes'].quantile(threshold/100)])
+    st.markdown(f"**Outliers detected:** {outlier_count} facilities ({outlier_count/len(df)*100:.1f}%)")
+
+def show_sector_analysis(df):
+    """Show detailed sector analysis"""
+    st.plotly_chart(plot_top_sectors(df, top_n=15), use_container_width=True)
+    
+    # Sector selection
+    selected_sectors = st.multiselect(
+        "Select sectors to compare:",
+        sorted(df['industry_sector_clean'].unique()),
+        default=sorted(df['industry_sector_clean'].unique())[:5],
+        key="sector_multiselect"
+    )
+    
+    if selected_sectors:
+        sector_df = df[df['industry_sector_clean'].isin(selected_sectors)]
+        sector_stats = sector_df.groupby('industry_sector_clean')['total_ghg_emissions_tonnes'].agg(['count', 'mean', 'sum']).round(2)
+        st.dataframe(sector_stats, use_container_width=True)
+
+def show_state_analysis(df):
+    """Show detailed state analysis"""
+    st.plotly_chart(plot_state_map(df), use_container_width=True)
+
+def show_time_analysis(df):
+    """Show temporal analysis"""
+    st.plotly_chart(plot_yearly_trends(df), use_container_width=True)
     
     col1, col2 = st.columns(2)
     
@@ -196,29 +305,37 @@ def show_detailed_analysis(df):
         )
 
 def show_emissions_predictor(df, predictor):
-    st.markdown('<h2 class="section-header">🔮 Emissions Predictor</h2>', 
-                unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Emissions Predictor</div>', unsafe_allow_html=True)
     
-    st.markdown("""
-    Use the machine learning model to predict GHG emissions for a facility based on its characteristics.
-    The model was trained on EPA data from 2021-2023 using a Random Forest algorithm.
-    """)
+    ui.alert(
+        title="Machine Learning Prediction",
+        description="Use the trained Random Forest model to predict GHG emissions for a facility based on its characteristics. The model was trained on EPA data from 2021-2023.",
+        key="predictor_info"
+    )
     
-    # Input form
+    # Input form in a card
+    ui.card(
+        content=show_prediction_form(df, predictor),
+        title="Facility Information",
+        key="prediction_form_card"
+    )
+
+def show_prediction_form(df, predictor):
+    """Show the prediction input form"""
     col1, col2, col3 = st.columns(3)
     
     with col1:
         state = st.selectbox(
             "Select State:",
             sorted(df['state'].unique()),
-            help="Choose the state where the facility is located"
+            key="state_selector"
         )
     
     with col2:
         sector = st.selectbox(
             "Select Industry Sector:",
             sorted(df['industry_sector_clean'].unique()),
-            help="Choose the industry sector of the facility"
+            key="sector_selector"
         )
     
     with col3:
@@ -226,7 +343,72 @@ def show_emissions_predictor(df, predictor):
             "Select Year:",
             [2021, 2022, 2023, 2024, 2025],
             index=2,
-            help="Choose the reporting year"
+            key="year_selector"
+        )
+    
+    # Prediction button
+    if ui.button(text="Predict Emissions", key="predict_button"):
+        if state and sector and year:
+            make_prediction(df, predictor, state, sector, year)
+        else:
+            ui.alert(
+                title="Missing Information",
+                description="Please select all required fields: State, Industry Sector, and Year.",
+                key="missing_info_alert"
+            )
+
+def make_prediction(df, predictor, state, sector, year):
+    """Make and display prediction"""
+    try:
+        # Create input DataFrame for prediction
+        input_data = pd.DataFrame({
+            'state': [state],
+            'industry_sector_clean': [sector],
+            'reporting_year': [year]
+        })
+        
+        prediction = predictor.predict(input_data)[0]
+        
+        # Display results in cards
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            ui.metric_card(
+                title="Predicted Emissions",
+                content=f"{prediction:,.0f}",
+                description="metric tons CO₂e annually",
+                key="prediction_result"
+            )
+        
+        with col2:
+            # Find similar facilities for context
+            similar = df[
+                (df['state'] == state) & 
+                (df['industry_sector_clean'] == sector)
+            ]['total_ghg_emissions_tonnes']
+            
+            if len(similar) > 0:
+                avg_similar = similar.mean()
+                delta = prediction - avg_similar
+                ui.metric_card(
+                    title="Similar Facilities Average",
+                    content=f"{avg_similar:,.0f}",
+                    description=f"Δ {delta:+,.0f} from average",
+                    key="similar_facilities"
+                )
+        
+        # Additional context
+        ui.alert(
+            title="Prediction Context",
+            description=f"Predicted for {sector} facility in {state} for year {year}. Based on {len(similar)} similar facilities in the training dataset.",
+            key="prediction_context"
+        )
+        
+    except Exception as e:
+        ui.alert(
+            title="Prediction Error",
+            description=f"An error occurred while making the prediction: {str(e)}",
+            key="prediction_error"
         )
     
     # Prediction button
@@ -290,53 +472,75 @@ def show_emissions_predictor(df, predictor):
             st.info("Feature importance not available for this model type.")
 
 def show_model_performance(training_results, predictor):
-    st.markdown('<h2 class="section-header">🤖 Model Performance</h2>', 
-                unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Model Performance</div>', unsafe_allow_html=True)
     
     if training_results is None:
-        st.warning("Model performance data not available. Please retrain the model.")
+        ui.alert(
+            title="No Performance Data",
+            description="Model performance data not available. Please retrain the model to see performance metrics.",
+            key="no_performance_alert"
+        )
         return
     
-    # Performance metrics
+    # Performance metrics in cards
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("R² Score", f"{training_results['r2']:.4f}")
-    with col2:
-        st.metric("MAE", f"{training_results['mae']:,.0f} MT")
-    with col3:
-        st.metric("RMSE", f"{training_results['rmse']:,.0f} MT")
-    with col4:
-        st.metric("CV Score", f"{training_results['cv_mean']:.4f}")
-    
-    # Performance visualization
-    if 'y_test' in training_results and 'y_pred' in training_results:
-        fig_performance = plot_model_performance(
-            training_results['y_test'], 
-            training_results['y_pred'],
-            "Random Forest Model"
+        ui.metric_card(
+            title="R² Score",
+            content=f"{training_results.get('R2 Score', 0):.4f}",
+            description="Model accuracy",
+            key="r2_metric"
         )
-        st.plotly_chart(fig_performance, use_container_width=True)
+    
+    with col2:
+        ui.metric_card(
+            title="MAE",
+            content=f"{training_results.get('MAE', 0):,.0f}",
+            description="Mean Absolute Error (MT)",
+            key="mae_metric"
+        )
+    
+    with col3:
+        ui.metric_card(
+            title="RMSE", 
+            content=f"{training_results.get('RMSE', 0):,.0f}",
+            description="Root Mean Squared Error (MT)",
+            key="rmse_metric"
+        )
+    
+    with col4:
+        ui.metric_card(
+            title="Cross-Validation",
+            content="N/A",
+            description="CV Score",
+            key="cv_metric"
+        )
     
     # Feature importance
-    if training_results.get('feature_importance') is not None:
-        st.subheader("Feature Importance")
-        importance_df = training_results['feature_importance']
-        st.bar_chart(importance_df.set_index('feature')['importance'])
+    importance = predictor.get_feature_importance()
+    if importance is not None:
+        ui.card(
+            content=st.bar_chart(importance.set_index('feature')['importance']),
+            title="Feature Importance",
+            key="feature_importance_card"
+        )
     
     # Model interpretation
-    st.subheader("Model Interpretation")
-    st.markdown("""
-    **Key Insights:**
-    - **R² Score**: Indicates how well the model explains the variance in emissions
-    - **MAE (Mean Absolute Error)**: Average prediction error in metric tons
-    - **RMSE**: Root mean squared error, penalizes larger errors more heavily
-    - **Cross-Validation**: Shows model stability across different data splits
-    
-    **Feature Importance** shows which factors most influence emissions predictions:
-    - Higher importance = stronger influence on predictions
-    - Helps identify key drivers of GHG emissions
-    """)
+    ui.card(
+        content=st.markdown("""
+        **Model Insights:**
+        
+        - **R² Score**: Indicates how well the model explains variance in emissions
+        - **MAE**: Average prediction error in metric tons CO₂e
+        - **RMSE**: Root mean squared error, penalizes larger errors more heavily
+        - **Feature Importance**: Shows which factors most influence emissions predictions
+        
+        The Random Forest model provides reliable predictions based on state, industry sector, and reporting year.
+        """),
+        title="Model Interpretation",
+        key="interpretation_card"
+    )
 
 if __name__ == "__main__":
     main()
